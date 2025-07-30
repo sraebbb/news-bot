@@ -13,11 +13,7 @@ const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
 async function translateText(text) {
   const url = 'https://translation.googleapis.com/language/translate/v2';
-  const params = {
-    q: text || '無標題',
-    target: 'zh-TW',
-    key: GOOGLE_API_KEY
-  };
+  const params = { q: text || '無標題', target: 'zh-TW', key: GOOGLE_API_KEY };
   try {
     const response = await axios.post(url, null, { params });
     return response.data.data.translations[0].translatedText;
@@ -33,30 +29,20 @@ async function getHKNews() {
   try {
     const response = await global.fetch(url);
     console.log('HK News Response Status:', response.status);
-    if (!response.ok) {
-      throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
     const data = await response.json();
-    if (data.status !== 'ok') {
-      throw new Error(`API 回應錯誤: ${data.message}`);
-    }
-    const articles = data.articles
-      .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
-      .slice(0, 3);
-    const translatedArticles = await Promise.all(
-      articles.map(async (article) => ({
-        title: await translateText(article.title),
-        description: article.description ? await translateText(article.description) : '',
-        url: article.url,
-        image: article.urlToImage || ''
-      }))
-    );
+    if (data.status !== 'ok') throw new Error(`API 回應錯誤: ${data.message}`);
+    const articles = data.articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)).slice(0, 3);
+    const translatedArticles = await Promise.all(articles.map(async (article) => ({
+      title: await translateText(article.title),
+      description: article.description ? await translateText(article.description) : '',
+      url: article.url,
+      image: article.urlToImage || ''
+    })));
     const embed = new EmbedBuilder()
       .setTitle('香港重點新聞播報')
       .setColor('#FF4500')
-      .setDescription(translatedArticles.length
-        ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n')
-        : '沒有新聞')
+      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有新聞')
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
     return embed;
   } catch (error) {
@@ -71,30 +57,20 @@ async function getWorldNews() {
   try {
     const response = await global.fetch(url);
     console.log('World News Response Status:', response.status);
-    if (!response.ok) {
-      throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
     const data = await response.json();
-    if (data.status !== 'ok') {
-      throw new Error(`API 回應錯誤: ${data.message}`);
-    }
-    const articles = data.articles
-      .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
-      .slice(0, 3);
-    const translatedArticles = await Promise.all(
-      articles.map(async (article) => ({
-        title: await translateText(article.title),
-        description: article.description ? await translateText(article.description) : '',
-        url: article.url,
-        image: article.urlToImage || ''
-      }))
-    );
+    if (data.status !== 'ok') throw new Error(`API 回應錯誤: ${data.message}`);
+    const articles = data.articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)).slice(0, 3);
+    const translatedArticles = await Promise.all(articles.map(async (article) => ({
+      title: await translateText(article.title),
+      description: article.description ? await translateText(article.description) : '',
+      url: article.url,
+      image: article.urlToImage || ''
+    })));
     const embed = new EmbedBuilder()
       .setTitle('國際重點新聞播報')
       .setColor('#1E90FF')
-      .setDescription(translatedArticles.length
-        ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n')
-        : '沒有新聞')
+      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有新聞')
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
     return embed;
   } catch (error) {
@@ -105,21 +81,28 @@ async function getWorldNews() {
 
 client.once('ready', () => {
   console.log(`${client.user.tag} 已連線到 Discord!`);
-  setInterval(async () => {
-    const channel = client.channels.cache.get(CHANNEL_ID);
-    if (channel) {
-      await channel.send({ embeds: [await getHKNews()] });
-      await channel.send({ embeds: [await getWorldNews()] });
-    }
-  }, 3600000); // 每小時
+  const now = new Date();
+  const nextHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
+  const initialDelay = nextHour - now;
+  setTimeout(() => {
+    setInterval(async () => {
+      console.log(`自動播報觸發時間: ${new Date().toISOString()}`);
+      const channel = client.channels.cache.get(CHANNEL_ID);
+      if (channel) {
+        try {
+          await channel.send({ embeds: [await getHKNews()] });
+          await channel.send({ embeds: [await getWorldNews()] });
+        } catch (error) {
+          console.error('自動播報錯誤:', error.message);
+        }
+      }
+    }, 3600000); // 每小時
+  }, initialDelay);
 });
 
 client.on('messageCreate', async (message) => {
-  if (message.content === '!hknews') {
-    await message.channel.send({ embeds: [await getHKNews()] });
-  } else if (message.content === '!worldnews') {
-    await message.channel.send({ embeds: [await getWorldNews()] });
-  }
+  if (message.content === '!hknews') await message.channel.send({ embeds: [await getHKNews()] });
+  else if (message.content === '!worldnews') await message.channel.send({ embeds: [await getWorldNews()] });
 });
 
 client.login(TOKEN);
