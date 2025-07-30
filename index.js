@@ -99,12 +99,31 @@ client.once('ready', () => {
 });
 
 client.on('messageCreate', async (message) => {
+  console.log(`收到訊息: ${message.content} 在頻道 ${message.channel.id}`);
   if (message.content === '!hknews') {
     const channel = client.channels.cache.get(CHANNEL_ID);
-    if (channel) await channel.send({ embeds: [await getHKNews()] });
+    if (channel) {
+      try {
+        await channel.send({ embeds: [await getHKNews()] });
+        console.log(`成功發送 !hknews 到 ${CHANNEL_ID}`);
+      } catch (error) {
+        console.error('!hknews 錯誤:', error.message);
+      }
+    } else {
+      console.error('頻道未找到:', CHANNEL_ID);
+    }
   } else if (message.content === '!worldnews') {
     const channel = client.channels.cache.get(CHANNEL_ID);
-    if (channel) await channel.send({ embeds: [await getWorldNews()] });
+    if (channel) {
+      try {
+        await channel.send({ embeds: [await getWorldNews()] });
+        console.log(`成功發送 !worldnews 到 ${CHANNEL_ID}`);
+      } catch (error) {
+        console.error('!worldnews 錯誤:', error.message);
+      }
+    } else {
+      console.error('頻道未找到:', CHANNEL_ID);
+    }
   }
 });
 
