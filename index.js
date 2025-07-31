@@ -32,7 +32,19 @@ async function getHKNews() {
     if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
     const data = await response.json();
     if (data.status !== 'success') throw new Error(`API 回應錯誤: ${data.message}`);
-    const articles = data.results.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate)).slice(0, 5);
+    const now = new Date();
+    const articles = data.results
+      .filter(article => {
+        const pubDate = new Date(article.pubDate);
+        const isRecent = (now - pubDate) <= 24 * 60 * 60 * 1000; // 24 小時內
+        const isMajorSource = ['bbc-news', 'cnn', 'scmp', 'hongkongfp'].includes(article.source_id.toLowerCase());
+        const isKeyHeadline = ['breaking', 'urgent', 'top', 'major'].some(keyword => 
+          article.title.toLowerCase().includes(keyword.toLowerCase())
+        );
+        return isRecent && (isMajorSource || isKeyHeadline);
+      })
+      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+      .slice(0, 5);
     const translatedArticles = await Promise.all(articles.map(async (article) => ({
       title: await translateText(article.title),
       description: article.description ? await translateText(article.description) : '',
@@ -40,9 +52,9 @@ async function getHKNews() {
       image: article.image_url || ''
     })));
     return new EmbedBuilder()
-      .setTitle('香港政治與社會新聞播報')
+      .setTitle('香港政治與社會重點新聞播報')
       .setColor('#FF4500')
-      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有新聞')
+      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '無重點新聞')
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
   } catch (error) {
     console.error('HK News 錯誤:', error.message);
@@ -59,7 +71,19 @@ async function getWorldNews() {
     if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
     const data = await response.json();
     if (data.status !== 'ok') throw new Error(`API 回應錯誤: ${data.message}`);
-    const articles = data.articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)).slice(0, 3);
+    const now = new Date();
+    const articles = data.articles
+      .filter(article => {
+        const pubDate = new Date(article.publishedAt);
+        const isRecent = (now - pubDate) <= 24 * 60 * 60 * 1000; // 24 小時內
+        const isMajorSource = ['bbc', 'cnn', 'reuters', 'ap'].includes(article.source.name.toLowerCase());
+        const isKeyHeadline = ['breaking', 'urgent', 'top', 'major'].some(keyword => 
+          article.title.toLowerCase().includes(keyword.toLowerCase())
+        );
+        return isRecent && (isMajorSource || isKeyHeadline);
+      })
+      .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
+      .slice(0, 5);
     const translatedArticles = await Promise.all(articles.map(async (article) => ({
       title: await translateText(article.title),
       description: article.description ? await translateText(article.description) : '',
@@ -69,7 +93,7 @@ async function getWorldNews() {
     return new EmbedBuilder()
       .setTitle('國際重點新聞播報')
       .setColor('#1E90FF')
-      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有新聞')
+      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '無重點新聞')
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
   } catch (error) {
     console.error('World News 錯誤:', error.message);
