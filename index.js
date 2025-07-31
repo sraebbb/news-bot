@@ -10,6 +10,7 @@ const TOKEN = process.env.DISCORD_TOKEN;
 const NEWS_API_KEY = process.env.NEWS_API_KEY;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+const NEWSDATA_API_KEY = process.env.NEWSDATA_API_KEY;
 
 async function translateText(text) {
   const url = 'https://translation.googleapis.com/language/translate/v2';
@@ -24,84 +25,42 @@ async function translateText(text) {
 }
 
 async function getHKNews() {
-  if (!NEWS_API_KEY) {
-    console.error('HK News 錯誤: NEWS_API_KEY 未定義');
-    return new EmbedBuilder().setTitle('錯誤').setDescription('API Key 未配置，請檢查 Heroku 環境變數').setColor('#FF0000');
-  }
   try {
-    const url = `https://newsapi.org/v2/everything?q=(hong+kong+politics)+OR+(hong+kong+society)-finance-stock-market&language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
+    const url = `https://newsdata.io/api/1/news?country=hk&category=politics,society&language=en&apikey=${NEWSDATA_API_KEY}`;
     console.log('HK News URL:', url);
     const response = await global.fetch(url);
-    console.log('HK News Response Headers:', JSON.stringify(response.headers));
     console.log('HK News Response Status:', response.status);
-    if (!response.ok) {
-      throw new Error(`HTTP 錯誤！狀態碼: ${response.status} - ${response.statusText} - ${await response.text()}`);
-    }
+    if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
     const data = await response.json();
-    console.log('HK News Response Data:', JSON.stringify(data)); // 添加完整回應日誌
-    if (data.status !== 'ok') {
-      throw new Error(`API 回應錯誤: ${data.message || '無錯誤訊息'} - ${JSON.stringify(data)}`);
-    }
-    const now = new Date();
-    const articles = data.articles
-      .filter(article => {
-        const pubDate = new Date(article.publishedAt);
-        const isRecent = (now - pubDate) <= 24 * 60 * 60 * 1000;
-        const isMajorSource = ['bbc', 'cnn', 'reuters', 'scmp'].includes(article.source.name.toLowerCase());
-        const isKeyHeadline = ['breaking', 'urgent', 'top', 'major'].some(keyword => 
-          article.title.toLowerCase().includes(keyword.toLowerCase())
-        );
-        return isRecent && (isMajorSource || isKeyHeadline);
-      })
-      .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
-      .slice(0, 5);
+    if (data.status !== 'success') throw new Error(`API 回應錯誤: ${data.message}`);
+    const articles = data.results.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate)).slice(0, 5);
     const translatedArticles = await Promise.all(articles.map(async (article) => ({
       title: await translateText(article.title),
       description: article.description ? await translateText(article.description) : '',
-      url: article.url,
-      image: article.urlToImage || ''
+      url: article.link,
+      image: article.image_url || ''
     })));
     return new EmbedBuilder()
-      .setTitle('香港政治與社會重點新聞播報')
+      .setTitle('香港政治與社會新聞播報')
       .setColor('#FF4500')
-      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '無重點新聞')
+      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有新聞')
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
   } catch (error) {
     console.error('HK News 錯誤:', error.message);
-    return new EmbedBuilder().setTitle('錯誤').setDescription(`新聞獲取失敗: ${error.message}`).setColor('#FF0000');
+    return new EmbedBuilder().setTitle('錯誤').setDescription('新聞獲取失敗').setColor('#FF0000');
   }
 }
 
 async function getWorldNews() {
-  if (!NEWS_API_KEY) {
-    console.error('World News 錯誤: NEWS_API_KEY 未定義');
-    return new EmbedBuilder().setTitle('錯誤').setDescription('API Key 未配置，請檢查 Heroku 環境變數').setColor('#FF0000');
-  }
   try {
     const url = `https://newsapi.org/v2/top-headlines?language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
     console.log('World News URL:', url);
     const response = await global.fetch(url);
     console.log('World News Response Status:', response.status);
-    if (!response.ok) {
-      throw new Error(`HTTP 錯誤！狀態碼: ${response.status} - ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
     const data = await response.json();
-    if (data.status !== 'ok') {
-      throw new Error(`API 回應錯誤: ${data.message || '無錯誤訊息'}`);
-    }
-    const now = new Date();
-    const articles = data.articles
-      .filter(article => {
-        const pubDate = new Date(article.publishedAt);
-        const isRecent = (now - pubDate) <= 24 * 60 * 60 * 1000;
-        const isMajorSource = ['bbc', 'cnn', 'reuters', 'ap'].includes(article.source.name.toLowerCase());
-        const isKeyHeadline = ['breaking', 'urgent', 'top', 'major'].some(keyword => 
-          article.title.toLowerCase().includes(keyword.toLowerCase())
-        );
-        return isRecent && (isMajorSource || isKeyHeadline);
-      })
-      .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
-      .slice(0, 5);
+    if (data.status !== 'ok') throw new Error(`API 回應錯誤: ${data.message}`);
+    const articles = data.articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)).slice(0, 5);
     const translatedArticles = await Promise.all(articles.map(async (article) => ({
       title: await translateText(article.title),
       description: article.description ? await translateText(article.description) : '',
@@ -111,11 +70,11 @@ async function getWorldNews() {
     return new EmbedBuilder()
       .setTitle('國際重點新聞播報')
       .setColor('#1E90FF')
-      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '無重點新聞')
+      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有新聞')
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
   } catch (error) {
     console.error('World News 錯誤:', error.message);
-    return new EmbedBuilder().setTitle('錯誤').setDescription(`新聞獲取失敗: ${error.message}`).setColor('#FF0000');
+    return new EmbedBuilder().setTitle('錯誤').setDescription('新聞獲取失敗').setColor('#FF0000');
   }
 }
 
