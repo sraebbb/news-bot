@@ -24,32 +24,40 @@ async function translateText(text) {
 }
 
 async function getHKNews() {
+  if (!NEWS_API_KEY) {
+    console.error('HK News 錯誤: NEWS_API_KEY 未定義');
+    return new EmbedBuilder().setTitle('錯誤').setDescription('API Key 未配置，請檢查 Heroku 環境變數').setColor('#FF0000');
+  }
   try {
-    const url = `https://newsdata.io/api/1/news?country=hk&category=politics,society&language=en&apikey=${NEWSDATA_API_KEY}`;
+    const url = `https://newsapi.org/v2/everything?q=(hong+kong+politics)+OR+(hong+kong+society)-finance-stock-market&language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
     console.log('HK News URL:', url);
     const response = await global.fetch(url);
     console.log('HK News Response Status:', response.status);
-    if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`HTTP 錯誤！狀態碼: ${response.status} - ${response.statusText}`);
+    }
     const data = await response.json();
-    if (data.status !== 'success') throw new Error(`API 回應錯誤: ${data.message}`);
+    if (data.status !== 'ok') {
+      throw new Error(`API 回應錯誤: ${data.message || '無錯誤訊息'}`);
+    }
     const now = new Date();
-    const articles = data.results
+    const articles = data.articles
       .filter(article => {
-        const pubDate = new Date(article.pubDate);
-        const isRecent = (now - pubDate) <= 24 * 60 * 60 * 1000; // 24 小時內
-        const isMajorSource = ['bbc-news', 'cnn', 'scmp', 'hongkongfp'].includes(article.source_id.toLowerCase());
+        const pubDate = new Date(article.publishedAt);
+        const isRecent = (now - pubDate) <= 24 * 60 * 60 * 1000;
+        const isMajorSource = ['bbc', 'cnn', 'reuters', 'scmp'].includes(article.source.name.toLowerCase());
         const isKeyHeadline = ['breaking', 'urgent', 'top', 'major'].some(keyword => 
           article.title.toLowerCase().includes(keyword.toLowerCase())
         );
         return isRecent && (isMajorSource || isKeyHeadline);
       })
-      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+      .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
       .slice(0, 5);
     const translatedArticles = await Promise.all(articles.map(async (article) => ({
       title: await translateText(article.title),
       description: article.description ? await translateText(article.description) : '',
-      url: article.link,
-      image: article.image_url || ''
+      url: article.url,
+      image: article.urlToImage || ''
     })));
     return new EmbedBuilder()
       .setTitle('香港政治與社會重點新聞播報')
@@ -58,24 +66,32 @@ async function getHKNews() {
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
   } catch (error) {
     console.error('HK News 錯誤:', error.message);
-    return new EmbedBuilder().setTitle('錯誤').setDescription('新聞獲取失敗').setColor('#FF0000');
+    return new EmbedBuilder().setTitle('錯誤').setDescription(`新聞獲取失敗: ${error.message}`).setColor('#FF0000');
   }
 }
 
 async function getWorldNews() {
+  if (!NEWS_API_KEY) {
+    console.error('World News 錯誤: NEWS_API_KEY 未定義');
+    return new EmbedBuilder().setTitle('錯誤').setDescription('API Key 未配置，請檢查 Heroku 環境變數').setColor('#FF0000');
+  }
   try {
     const url = `https://newsapi.org/v2/top-headlines?language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
     console.log('World News URL:', url);
     const response = await global.fetch(url);
     console.log('World News Response Status:', response.status);
-    if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`HTTP 錯誤！狀態碼: ${response.status} - ${response.statusText}`);
+    }
     const data = await response.json();
-    if (data.status !== 'ok') throw new Error(`API 回應錯誤: ${data.message}`);
+    if (data.status !== 'ok') {
+      throw new Error(`API 回應錯誤: ${data.message || '無錯誤訊息'}`);
+    }
     const now = new Date();
     const articles = data.articles
       .filter(article => {
         const pubDate = new Date(article.publishedAt);
-        const isRecent = (now - pubDate) <= 24 * 60 * 60 * 1000; // 24 小時內
+        const isRecent = (now - pubDate) <= 24 * 60 * 60 * 1000;
         const isMajorSource = ['bbc', 'cnn', 'reuters', 'ap'].includes(article.source.name.toLowerCase());
         const isKeyHeadline = ['breaking', 'urgent', 'top', 'major'].some(keyword => 
           article.title.toLowerCase().includes(keyword.toLowerCase())
@@ -97,12 +113,15 @@ async function getWorldNews() {
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
   } catch (error) {
     console.error('World News 錯誤:', error.message);
-    return new EmbedBuilder().setTitle('錯誤').setDescription('新聞獲取失敗').setColor('#FF0000');
+    return new EmbedBuilder().setTitle('錯誤').setDescription(`新聞獲取失敗: ${error.message}`).setColor('#FF0000');
   }
 }
 
 client.once('ready', () => {
   console.log(`${client.user.tag} 已連線到 Discord!`);
+  const channel = client.channels.cache.get(CHANNEL_ID);
+  if (!channel) console.error('指定頻道未找到:', CHANNEL_ID);
+  setInterval(() => console.log(`心跳: ${new Date().toISOString()}`), 300000); // 每 5 分鐘日誌
   const now = new Date();
   const nextHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
   const initialDelay = nextHour - now;
@@ -123,13 +142,13 @@ client.once('ready', () => {
 });
 
 client.on('messageCreate', async (message) => {
-  console.log(`收到訊息: ${message.content} 在頻道 ${message.channel.id}`);
+  console.log(`收到訊息: ${message.content} 在頻道 ${message.channel.id} 由 ${message.author.tag}`);
   if (message.content === '!hknews') {
     const channel = client.channels.cache.get(CHANNEL_ID);
     if (channel) {
       try {
         await channel.send({ embeds: [await getHKNews()] });
-        console.log(`成功發送 !hknews 到 ${CHANNEL_ID}`);
+        console.log(`成功發送 !hknews 到 ${CHANNEL_ID} 由 ${message.author.tag}`);
       } catch (error) {
         console.error('!hknews 錯誤:', error.message);
       }
@@ -141,7 +160,7 @@ client.on('messageCreate', async (message) => {
     if (channel) {
       try {
         await channel.send({ embeds: [await getWorldNews()] });
-        console.log(`成功發送 !worldnews 到 ${CHANNEL_ID}`);
+        console.log(`成功發送 !worldnews 到 ${CHANNEL_ID} 由 ${message.author.tag}`);
       } catch (error) {
         console.error('!worldnews 錯誤:', error.message);
       }
