@@ -32,13 +32,15 @@ async function getHKNews() {
     const url = `https://newsapi.org/v2/everything?q=(hong+kong+politics)+OR+(hong+kong+society)-finance-stock-market&language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
     console.log('HK News URL:', url);
     const response = await global.fetch(url);
+    console.log('HK News Response Headers:', JSON.stringify(response.headers));
     console.log('HK News Response Status:', response.status);
     if (!response.ok) {
-      throw new Error(`HTTP 錯誤！狀態碼: ${response.status} - ${response.statusText}`);
+      throw new Error(`HTTP 錯誤！狀態碼: ${response.status} - ${response.statusText} - ${await response.text()}`);
     }
     const data = await response.json();
+    console.log('HK News Response Data:', JSON.stringify(data)); // 添加完整回應日誌
     if (data.status !== 'ok') {
-      throw new Error(`API 回應錯誤: ${data.message || '無錯誤訊息'}`);
+      throw new Error(`API 回應錯誤: ${data.message || '無錯誤訊息'} - ${JSON.stringify(data)}`);
     }
     const now = new Date();
     const articles = data.articles
