@@ -25,20 +25,19 @@ async function translateText(text) {
 
 async function getHKNews() {
   try {
-    const url = `https://newsapi.org/v2/everything?q=(hong+kong+politics+protest+legislation)+OR+(hong+kong+society+community+education)-finance-stock-market-economy&language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
+    const url = `https://newsdata.io/api/1/news?country=hk&category=politics,society&language=en&apikey=${NEWSDATA_API_KEY}`;
     console.log('HK News URL:', url);
     const response = await global.fetch(url);
     console.log('HK News Response Status:', response.status);
     if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
     const data = await response.json();
-    if (data.status !== 'ok') throw new Error(`API 回應錯誤: ${data.message}`);
-    data.articles.forEach((article, index) => console.log(`Article ${index + 1}: ${article.title} - Source: ${article.source.name} - Description: ${article.description || 'N/A'}`));
-    const articles = data.articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)).slice(0, 3);
+    if (data.status !== 'success') throw new Error(`API 回應錯誤: ${data.message}`);
+    const articles = data.results.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate)).slice(0, 5);
     const translatedArticles = await Promise.all(articles.map(async (article) => ({
       title: await translateText(article.title),
       description: article.description ? await translateText(article.description) : '',
-      url: article.url,
-      image: article.urlToImage || ''
+      url: article.link,
+      image: article.image_url || ''
     })));
     return new EmbedBuilder()
       .setTitle('香港政治與社會新聞播報')
