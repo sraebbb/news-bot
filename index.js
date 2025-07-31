@@ -25,14 +25,14 @@ async function translateText(text) {
 
 async function getHKNews() {
   try {
-    const url = `https://newsapi.org/v2/everything?q=(hong+kong+politics)+OR+(hong+kong+society)+OR+(hong+kong+technology)-finance-stock-market&language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
+    const url = `https://newsapi.org/v2/everything?q=(hong+kong+politics)+OR+(hong+kong+society)&language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
     console.log('HK News URL:', url);
     const response = await global.fetch(url);
     console.log('HK News Response Status:', response.status);
     if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
     const data = await response.json();
     if (data.status !== 'ok') throw new Error(`API 回應錯誤: ${data.message}`);
-    data.articles.forEach((article, index) => console.log(`Article ${index + 1}: ${article.title} - Source: ${article.source.name}`));
+    data.articles.forEach((article, index) => console.log(`Article ${index + 1}: ${article.title} - Source: ${article.source.name} - Description: ${article.description || 'N/A'}`));
     const articles = data.articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)).slice(0, 3);
     const translatedArticles = await Promise.all(articles.map(async (article) => ({
       title: await translateText(article.title),
@@ -41,7 +41,7 @@ async function getHKNews() {
       image: article.urlToImage || ''
     })));
     return new EmbedBuilder()
-      .setTitle('香港重點新聞播報')
+      .setTitle('香港政治與社會新聞播報')
       .setColor('#FF4500')
       .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有新聞')
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
