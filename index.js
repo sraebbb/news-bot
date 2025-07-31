@@ -41,9 +41,9 @@ async function getHKNews() {
       image: article.urlToImage || ''
     })));
     return new EmbedBuilder()
-      .setTitle('香港政治與社會新聞播報')
+      .setTitle('香港重點新聞播報')
       .setColor('#FF4500')
-      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有相關新聞')
+      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有新聞')
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
   } catch (error) {
     console.error('HK News 錯誤:', error.message);
@@ -82,11 +82,14 @@ client.once('ready', () => {
   console.log(`${client.user.tag} 已連線到 Discord!`);
   const channel = client.channels.cache.get(CHANNEL_ID);
   if (!channel) console.error('指定頻道未找到:', CHANNEL_ID);
+  console.log('自動播報計時器初始化');
   setInterval(() => console.log(`心跳: ${new Date().toISOString()}`), 300000); // 每 5 分鐘日誌
   const now = new Date();
   const nextHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
   const initialDelay = nextHour - now;
+  console.log(`首次自動播報延遲: ${initialDelay / 60000} 分鐘`);
   setTimeout(() => {
+    console.log('自動播報計時器啟動');
     setInterval(async () => {
       console.log(`自動播報觸發時間: ${new Date().toISOString()}`);
       const channel = client.channels.cache.get(CHANNEL_ID);
