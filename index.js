@@ -25,14 +25,13 @@ async function translateText(text) {
 
 async function getHKNews() {
   try {
-    const url = `https://newsapi.org/v2/everything?q=hong+kong&language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
+    const url = `https://newsapi.org/v2/everything?q=(hong+kong)+OR+(hong+kong+politics)+OR+(hong+kong+society)+OR+(hong+kong+technology)&language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
     console.log('HK News URL:', url);
     const response = await global.fetch(url);
     console.log('HK News Response Status:', response.status);
     if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
     const data = await response.json();
     if (data.status !== 'ok') throw new Error(`API 回應錯誤: ${data.message}`);
-    data.articles.forEach((article, index) => console.log(`Article ${index + 1}: ${article.title} - Source: ${article.source.name}`));
     const articles = data.articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)).slice(0, 3);
     const translatedArticles = await Promise.all(articles.map(async (article) => ({
       title: await translateText(article.title),
