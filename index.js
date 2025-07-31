@@ -32,6 +32,7 @@ async function getHKNews() {
     if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
     const data = await response.json();
     if (data.status !== 'ok') throw new Error(`API 回應錯誤: ${data.message}`);
+    data.articles.forEach((article, index) => console.log(`Article ${index + 1}: ${article.title} - Source: ${article.source.name}`));
     const articles = data.articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)).slice(0, 3);
     const translatedArticles = await Promise.all(articles.map(async (article) => ({
       title: await translateText(article.title),
