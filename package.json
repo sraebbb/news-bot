@@ -6,8 +6,8 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "discord.js": "^14.x.x",
     "axios": "^1.x.x",
-    "node-schedule": "^2.x.x"
+    "discord.js": "^14.x.x",
+    "node-schedule": "^2.1.1"
   }
 }
