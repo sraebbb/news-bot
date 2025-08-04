@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const axios = require('axios');
+const schedule = require('node-schedule');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
@@ -41,12 +42,12 @@ async function getHKNews() {
       image: article.urlToImage || ''
     })));
     return new EmbedBuilder()
-      .setTitle('香港重點新聞播報')
+      .setTitle('香港政治與社會新聞播報')
       .setColor('#FF4500')
-      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有新聞')
+      .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有相關新聞')
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
   } catch (error) {
-    console.error('HK News 錯誤:', error.message);
+    console.error('HK News 錯誤:', error.message, error);
     return new EmbedBuilder().setTitle('錯誤').setDescription('新聞獲取失敗').setColor('#FF0000');
   }
 }
@@ -73,36 +74,34 @@ async function getWorldNews() {
       .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有新聞')
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
   } catch (error) {
-    console.error('World News 錯誤:', error.message);
+    console.error('World News 錯誤:', error.message, error);
     return new EmbedBuilder().setTitle('錯誤').setDescription('新聞獲取失敗').setColor('#FF0000');
   }
 }
+
+let scheduleJob = null;
 
 client.once('ready', () => {
   console.log(`${client.user.tag} 已連線到 Discord!`);
   const channel = client.channels.cache.get(CHANNEL_ID);
   if (!channel) console.error('指定頻道未找到:', CHANNEL_ID);
-  console.log('自動播報計時器初始化');
   setInterval(() => console.log(`心跳: ${new Date().toISOString()}`), 300000); // 每 5 分鐘日誌
-  const now = new Date();
-  const nextHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
-  const initialDelay = nextHour - now;
-  console.log(`首次自動播報延遲: ${initialDelay / 60000} 分鐘`);
-  setTimeout(() => {
-    console.log('自動播報計時器啟動');
-    setInterval(async () => {
-      console.log(`自動播報觸發時間: ${new Date().toISOString()}`);
-      const channel = client.channels.cache.get(CHANNEL_ID);
-      if (channel) {
-        try {
-          await channel.send({ embeds: [await getHKNews()] });
-          await channel.send({ embeds: [await getWorldNews()] });
-        } catch (error) {
-          console.error('自動播報錯誤:', error.message);
-        }
+
+  // 取消先前任務並重新安排
+  if (scheduleJob) scheduleJob.cancel();
+  scheduleJob = schedule.scheduleJob('0 * * * *', async () => { // 每小時整點觸發
+    console.log(`自動播報觸發時間: ${new Date().toISOString()}`);
+    const channel = client.channels.cache.get(CHANNEL_ID);
+    if (channel) {
+      try {
+        await channel.send({ embeds: [await getHKNews()] });
+        await channel.send({ embeds: [await getWorldNews()] });
+      } catch (error) {
+        console.error('自動播報錯誤:', error.message, error);
       }
-    }, 3600000); // 每小時
-  }, initialDelay);
+    }
+  });
+  console.log('自動播報計時器啟動');
 });
 
 client.on('messageCreate', async (message) => {
@@ -114,7 +113,7 @@ client.on('messageCreate', async (message) => {
         await channel.send({ embeds: [await getHKNews()] });
         console.log(`成功發送 !hknews 到 ${CHANNEL_ID} 由 ${message.author.tag}`);
       } catch (error) {
-        console.error('!hknews 錯誤:', error.message);
+        console.error('!hknews 錯誤:', error.message, error);
       }
     } else {
       console.error('頻道未找到:', CHANNEL_ID);
@@ -126,7 +125,7 @@ client.on('messageCreate', async (message) => {
         await channel.send({ embeds: [await getWorldNews()] });
         console.log(`成功發送 !worldnews 到 ${CHANNEL_ID} 由 ${message.author.tag}`);
       } catch (error) {
-        console.error('!worldnews 錯誤:', error.message);
+        console.error('!worldnews 錯誤:', error.message, error);
       }
     } else {
       console.error('頻道未找到:', CHANNEL_ID);
