@@ -26,7 +26,7 @@ async function translateText(text) {
 
 async function getHKNews() {
   try {
-    const url = `https://newsapi.org/v2/everything?q=(hong+kong+politics)+OR+(hong+kong+society)+OR+(hong+kong+protest)+OR+(hong+kong+democracy)-finance-stock-market-economy&language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
+    const url = `https://newsapi.org/v2/everything?q=(in:hong+kong)+(politics+OR+society+OR+protest+OR+democracy)-finance-stock-market-economy&sources=scmp,hongkongfp.com&language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
     console.log('HK News URL:', url);
     const response = await global.fetch(url);
     console.log('HK News Response Status:', response.status);
