@@ -26,12 +26,12 @@ async function translateText(text) {
 
 async function getHKNews() {
   try {
-    const url = `https://newsapi.org/v2/everything?q=(in:hong+kong)+(politics+OR+society+OR+protest+OR+democracy)-finance-stock-market-economy&sources=scmp,hongkongfp.com&language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
+    const url = `https://newsapi.org/v2/everything?q=hong+kong+(politics+OR+society+OR+protest+OR+democracy)-finance-stock-market-economy&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
     console.log('HK News URL:', url);
-    const response = await global.fetch(url);
+    const response = await axios.get(url);
     console.log('HK News Response Status:', response.status);
-    if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
-    const data = await response.json();
+    if (response.status !== 200) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
+    const data = response.data;
     if (data.status !== 'ok') throw new Error(`API 回應錯誤: ${data.message}`);
     data.articles.forEach((article, index) => console.log(`Article ${index + 1}: ${article.title} - Source: ${article.source.name}`));
     const articles = data.articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)).slice(0, 3);
@@ -47,7 +47,7 @@ async function getHKNews() {
       .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有相關新聞')
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
   } catch (error) {
-    console.error('HK News 錯誤:', error.message, error);
+    console.error('HK News 錯誤:', error.message, error.response?.data || error);
     return new EmbedBuilder().setTitle('錯誤').setDescription('新聞獲取失敗').setColor('#FF0000');
   }
 }
@@ -56,10 +56,10 @@ async function getWorldNews() {
   try {
     const url = `https://newsapi.org/v2/top-headlines?language=en&sortBy=publishedAt&apiKey=${NEWS_API_KEY}`;
     console.log('World News URL:', url);
-    const response = await global.fetch(url);
+    const response = await axios.get(url);
     console.log('World News Response Status:', response.status);
-    if (!response.ok) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
-    const data = await response.json();
+    if (response.status !== 200) throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
+    const data = response.data;
     if (data.status !== 'ok') throw new Error(`API 回應錯誤: ${data.message}`);
     const articles = data.articles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt)).slice(0, 3);
     const translatedArticles = await Promise.all(articles.map(async (article) => ({
@@ -74,7 +74,7 @@ async function getWorldNews() {
       .setDescription(translatedArticles.length ? translatedArticles.map((a, i) => `${i + 1}. **[${a.title}](${a.url})**\n${a.description}`).join('\n\n') : '沒有新聞')
       .setImage(translatedArticles.length ? translatedArticles[0].image : '');
   } catch (error) {
-    console.error('World News 錯誤:', error.message, error);
+    console.error('World News 錯誤:', error.message, error.response?.data || error);
     return new EmbedBuilder().setTitle('錯誤').setDescription('新聞獲取失敗').setColor('#FF0000');
   }
 }
